@@ -29,6 +29,60 @@ This project shows how to bridge the gap between local MCP servers and cloud-hos
 - Microsoft.Extensions.AI
 - OpenAI
 
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "Cloud Environment"
+        User[User] --> API[ASP.NET Core API]
+        API --> LLM[LLM Provider<br/>OpenAI ChatClient]
+        API --> Broker[ClientToolBroker]
+        API --> Hub[SignalR Hub<br/>ToolHub]
+        
+        LLM --> |Function Call| Proxy[Proxy Tool Method<br/>WriteDateTimeToDesktopAsync]
+        Proxy --> Broker
+        Broker --> Hub
+    end
+    
+    subgraph "Local Environment"
+        subgraph "MCP Host Application"
+            HubClient[SignalR Hub Client<br/>ToolHubClient]
+            MCPClient[MCP Client]
+            MCPServer[MCP Server]
+            LocalTools[Local Tools<br/>WriteDateTimeToDesktopAsync]
+        end
+        
+        Desktop[Desktop File System]
+    end
+    
+    %% Cross-environment communication
+    Hub <--> |SignalR WebSocket| HubClient
+    
+    %% Local environment flows
+    HubClient --> |Tool Call| MCPClient
+    MCPClient --> |clientPipe| MCPServer
+    MCPServer --> |serverPipe| MCPClient
+    MCPServer --> |Execute| LocalTools
+    LocalTools --> |Write File| Desktop
+    
+    %% Data flow annotations
+    Hub --> |ToolCallEnvelope| HubClient
+    HubClient --> |ToolResultEnvelope| Hub
+    
+    %% Styling with more vibrant colors
+    classDef cloud fill:#1565c0,stroke:#0d47a1,stroke-width:3px,color:#ffffff
+    classDef local fill:#2e7d32,stroke:#1b5e20,stroke-width:3px,color:#ffffff
+    classDef mcp fill:#f57c00,stroke:#e65100,stroke-width:3px,color:#ffffff
+    classDef user fill:#d32f2f,stroke:#b71c1c,stroke-width:3px,color:#ffffff
+    classDef desktop fill:#7b1fa2,stroke:#4a148c,stroke-width:3px,color:#ffffff
+    
+    class API,LLM,Hub,Broker,Proxy cloud
+    class HubClient,MCPClient,MCPServer,LocalTools local
+    class Desktop desktop
+    class User user
+```
+
+
 ## Security Considerations
 
 ⚠️ **Warning**: This is a proof-of-concept. In production:
